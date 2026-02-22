@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Order Management System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+    }
+
+    h1 {
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+      font-size: 32px;
+      letter-spacing: 2px;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .card {
+      background: #ffffff;
+      color: #333;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      color: #2a5298;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #2a5298;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #1e3c72;
+    }
+
+    .list {
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+
+    .list p {
+      background: #f4f4f4;
+      padding: 8px;
+      border-radius: 6px;
+      margin: 5px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .delete-btn {
+      background: rgb(220, 95, 120);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .delete-btn:hover {
+      background: darkred;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>🛒 Order Management System</h1>
+
+<div class="container">
+
+  <!-- ITEMS -->
+  <div class="card">
+    <h2>📦 Items</h2>
+    <form id="itemForm">
+      <input type="text" id="itemDesc" placeholder="Item Description" required>
+      <input type="number" id="itemQty" placeholder="Quantity" required>
+      <input type="number" id="itemPrice" placeholder="Price" required>
+      <button type="submit">Add Item</button>
+    </form>
+    <button onclick="loadItems()">Refresh</button>
+    <div id="itemList" class="list"></div>
+  </div>
+
+  <!-- CUSTOMERS -->
+  <div class="card">
+    <h2>👤 Customers</h2>
+    <form id="customerForm">
+      <input type="text" id="custDesc" placeholder="Customer Name" required>
+      <input type="number" id="custPriority" placeholder="Priority (0/1)" required>
+      <button type="submit">Add Customer</button>
+    </form>
+    <button onclick="loadCustomers()">Refresh</button>
+    <div id="customerList" class="list"></div>
+  </div>
+
+  <!-- ORDERS -->
+  <div class="card">
+    <h2>🧾 Orders</h2>
+    <form id="orderForm">
+      <input type="number" id="orderCustId" placeholder="Customer ID" required>
+      <input type="number" id="orderItemId" placeholder="Item ID" required>
+      <input type="number" id="orderQty" placeholder="Quantity" required>
+      <input type="number" id="orderDiscount" placeholder="Discount %" required>
+      <button type="submit">Place Order</button>
+    </form>
+    <button onclick="loadOrders()">Refresh</button>
+    <div id="orderList" class="list"></div>
+  </div>
+
+</div>
+
+<script>
+
+const API_URL = 'http://localhost:3000/api';
+
+if (!localStorage.getItem('token')) {
+  window.location.href = 'login.html';
+}
+
+async function api(path, method='GET', body=null) {
+
+  const token = localStorage.getItem('token');
+
+  const options = {
+    method,
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  };
+
+  if (body) {
+    options.headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(API_URL + path, options);
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.message || 'Error');
+  }
+
+  return data;
+}
+
+/* ITEMS */
+itemForm.onsubmit = async e => {
+  e.preventDefault();
+  await api('', 'POST', {
+    item_desc: itemDesc.value,
+    item_qty: Number(itemQty.value),
+    price: Number(itemPrice.value)
+  });
+  loadItems();
+  itemForm.reset();
+};
+
+async function loadItems() {
+  const res = await api('');
+  itemList.innerHTML = res.data.map(i => `
+    <p>
+      ${i.item_desc} (Qty:${i.item_qty}) ₹${i.price}
+      <button class="delete-btn" onclick="deleteItem(${i.item_id})">X</button>
+    </p>
+  `).join('');
+}
+
+async function deleteItem(id) {
+  await api('/' + id, 'DELETE');
+  loadItems();
+}
+
+/* CUSTOMERS */
+customerForm.onsubmit = async e => {
+  e.preventDefault();
+  await api('/customer', 'POST', {
+    customer_desc: custDesc.value,
+    customer_priority: Number(custPriority.value)
+  });
+  loadCustomers();
+  customerForm.reset();
+};
+
+async function loadCustomers() {
+  const res = await api('/customer');
+  customerList.innerHTML = res.data.map(c => `
+    <p>
+      ${c.customer_desc} (Priority:${c.customer_priority})
+      <button class="delete-btn" onclick="deleteCustomer(${c.customer_id})">X</button>
+    </p>
+  `).join('');
+}
+
+async function deleteCustomer(id) {
+  await api('/customer/' + id, 'DELETE');
+  loadCustomers();
+}
+
+/* ORDERS */
+orderForm.onsubmit = async e => {
+  e.preventDefault();
+  await api('/order', 'POST', {
+    customer_id: Number(orderCustId.value),
+    item_id: Number(orderItemId.value),
+    order1_qty: Number(orderQty.value),
+    discount: Number(orderDiscount.value)
+  });
+  loadOrders();
+  loadItems();
+  orderForm.reset();
+};
+
+async function loadOrders() {
+  const orders = await api('/order');
+  orderList.innerHTML = orders.map(o => `
+    <p>
+      ${o.customer_desc} → ${o.item_desc} (x${o.order1_qty})
+      ₹${o.total_price}
+      <button class="delete-btn" onclick="deleteOrder(${o.order1_id})">X</button>
+    </p>
+  `).join('');
+}
+
+async function deleteOrder(id) {
+  await api('/order/' + id, 'DELETE');
+  loadOrders();
+  loadItems();
+}
+
+loadItems();
+loadCustomers();
+loadOrders();
+</script>
+
+</body>
+</html>
